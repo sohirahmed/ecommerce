@@ -6,6 +6,8 @@ import couponModel from '../../../db/models/coupon.model .js'
 import orderModel from '../../../db/models/order.model.js'
 import { createInvoice } from '../../utils/pdf.js'
 import { sendEmail } from '../../service/sendEmail.js'
+import { payment } from '../../utils/payment.js'
+import Stripe from 'stripe'
 
 
 //================================= createOrder ===================================
@@ -15,7 +17,7 @@ export const createOrder = asyncHandler(async(req,res,next) =>{
     if(couponCode){
         const coupon  = await couponModel.findOne({
             code:couponCode.toLowerCase(),
-            usedBy:{$nin:[req.user._id]}
+            // usedBy:{$nin:[req.user._id]}
         })
         if(!coupon || coupon.toDate < Date.now()){
             return next(new AppError("coupon not found or expired", 404))
@@ -101,20 +103,61 @@ export const createOrder = asyncHandler(async(req,res,next) =>{
         coupon: req.body?.coupon?.amount || 0 
     };
     
-    await createInvoice(invoice,"invoice.pdf");
+    // await createInvoice(invoice,"invoice.pdf");
 
-    await sendEmail(req.user.email , "Order Placed" , `Your order has been placed successfully` , [
-        {
-            path:"invoice.pdf",
-            contentType:"application/pdf"
-        },
-        {
-            path:"route.jpg",
-            contentType:"image/jpg"
+    // await sendEmail(req.user.email , "Order Placed" , `Your order has been placed successfully` , [
+    //     {
+    //         path:"invoice.pdf",
+    //         contentType:"application/pdf"
+    //     },
+    //     {
+    //         path:"route.jpg",
+    //         contentType:"image/jpg"
+    //     }
+    // ])
+
+    if(paymentMethod == "card"){
+
+        const  stripe = Stripe(process.env.stripe_secret)
+
+        if(req?.body.coupon){
+            const coupon = await stripe.coupon.create({
+                percent_off:req.body.coupon.amount,
+                duration:"once",
+            })
+            log(coupon)
+            req.body.couponId= coupon.id
         }
-    ])
+        const session = await payment({
+            stripe,
+            payment_method_types:["card"],
+            mode:"payment",
+            customer_email:req.user.email,
+            metadata:{
+                orderId:order._id.toString()
+            },
+            success_url:`${req.protocol}://${req.headers.host}/orders/success/${order._id}`,
+            cancel_url:`${req.protocol}://${req.headers.host}/orders/cancel/${order._id}`,
+            line_items:order.products.map((product)=>{
+                return{
+                        price_data:{
+                            currency:"egp",
+                        product_data:{
+                        name:product.title,
+                    },
+                    unit_amount:product.price * 100
+                },
+                quantity: product.quantity,
+            }
+        }),
+        discounts:req.body?.coupon ?[{coupon:req.body.couponId}] :[]
+    })
+    return res.status(200).json({msg:"done" , url:session.url})
 
-    res.status(200).json({msg:"done" , order})
+    }
+
+    return res.status(200).json({msg:"done" , order})
+
 })
 
 //=================================cancelOrder==================================================
