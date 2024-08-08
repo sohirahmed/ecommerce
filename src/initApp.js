@@ -13,7 +13,7 @@ export const initApp = (app, express) => {
     if(req.originalUrl== "/orders/webhook"){
       next()
     }else{
-      express.json()(req,res.next)
+      express.json()(req,res,next)
     }
   });
 

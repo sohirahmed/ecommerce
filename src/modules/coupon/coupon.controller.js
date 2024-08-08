@@ -1,6 +1,6 @@
 import { AppError } from '../../utils/classError.js'
 import { asyncHandler } from "../../utils/globalErrorHandling.js"
-import couponModel from '../../../db/models/coupon.model .js'
+import couponModel from '../../../db/models/coupon.model.js'
 
 //================================= getCoupon ===================================
 

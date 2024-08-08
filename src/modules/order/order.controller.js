@@ -1,13 +1,14 @@
 import { AppError } from '../../utils/classError.js'
 import { asyncHandler } from "../../utils/globalErrorHandling.js"
-import cartModel from '../../../db/models/coupon.model .js'
+import cartModel from '../../../db/models/coupon.model.js'
+import couponModel from '../../../db/models/coupon.model.js'
 import productModel from '../../../db/models/product.model.js'
-import couponModel from '../../../db/models/coupon.model .js'
 import orderModel from '../../../db/models/order.model.js'
 import { createInvoice } from '../../utils/pdf.js'
 import { sendEmail } from '../../service/sendEmail.js'
 import { payment } from '../../utils/payment.js'
 import Stripe from 'stripe'
+
 
 
 //================================= createOrder ===================================
@@ -17,7 +18,7 @@ export const createOrder = asyncHandler(async(req,res,next) =>{
     if(couponCode){
         const coupon  = await couponModel.findOne({
             code:couponCode.toLowerCase(),
-            // usedBy:{$nin:[req.user._id]}
+            usedBy:{$nin:[req.user._id]}
         })
         if(!coupon || coupon.toDate < Date.now()){
             return next(new AppError("coupon not found or expired", 404))
@@ -119,13 +120,12 @@ export const createOrder = asyncHandler(async(req,res,next) =>{
     if(paymentMethod == "card"){
 
         const stripe = Stripe(process.env.stripe_secret)
-
+        
         if(req?.body.coupon){
-            const coupon = await stripe.coupon.create({
+            const coupon = await stripe.coupons.create({
                 percent_off:req.body.coupon.amount,
                 duration:"once",
             })
-            log(coupon)
             req.body.couponId= coupon.id
         }
         const session = await payment({

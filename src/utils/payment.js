@@ -29,16 +29,3 @@ export async function payment({
 
 
 }
-
-
-
-// {
-//     price_data:{
-//         currency:"egp",
-//         product_data:{
-//             name:product.title,
-//         },
-//         unit_amount:product.subPrice * 100
-//     },
-//     quantity: 1
-// }
